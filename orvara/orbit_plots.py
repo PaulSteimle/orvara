@@ -19,8 +19,20 @@ from matplotlib.ticker import NullFormatter
 from matplotlib.ticker import AutoMinorLocator
 from orvara.format_fits import pull_chain_params, burnin_chain
 
-rc('font',**{'size':11.5})
+rc('font',**{'size':14})
 
+home_dir = '/nexus/posix0/MIA-astro-env/lkreidberg/pasteimle/'
+plt.style.use(os.path.join(home_dir, "elisabeth.mplstyle"))
+
+rcParams["ytick.labelsize"] = 16
+rcParams["xtick.labelsize"] = 16
+rcParams["axes.labelsize"] = 22
+rcParams["axes.grid"] = False
+rcParams['axes.linewidth'] = 1.5
+rcParams['pdf.fonttype']=42
+rcParams["mathtext.fontset"] = "stix"
+rcParams["font.family"] = "serif"
+rcParams["font.serif"] = ["DejaVu Serif"]
 
 class Orbit:
 
@@ -98,8 +110,9 @@ class OrbitPlots:
         pass        
 
     def start(self):
-        self.cmlabel_dic = {'msec_jup': r'$\mathrm{M_{comp} (M_{Jup})}$','msec_solar': r'$\mathrm{M_{comp} (M_{\odot})}$', 'ecc': 'Eccentricity'}
+        self.cmlabel_dic = {'msec_jup': r'$\mathrm{M_{comp} [M_{Jup}]}$','msec_solar': r'$\mathrm{M_{comp} [M_{\odot}]}$', 'ecc': 'Eccentricity'}
         self.color_list = ['r', 'g', 'b', 'y', 'c', 'b']
+
         
         ############################### load in data #######################
         # define epochs
@@ -337,10 +350,15 @@ class OrbitPlots:
         
         return dra, ddec
 
-    def astrometry(self):
+    def astrometry(self, axis=None, figure=None):
 
-        fig = plt.figure(figsize=(5, 4))
-        ax = fig.add_subplot(111)
+        if axis is not None and figure is not None:
+            fig = figure
+            ax = axis
+        else:            
+            fig = plt.figure(figsize=(5, 4))
+            ax = fig.add_subplot(111)
+
 
         # plot the num_orbits randomly selected curves
         for i in range(self.num_orbits):
@@ -455,9 +473,10 @@ class OrbitPlots:
             ax.set_title('Astrometric Orbits')
         if self.add_text:
             ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
+        
         if self.usecolorbar:
             cbar = fig.colorbar(self.sm, ax=ax, fraction=0.046, pad=0.04)
-            cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
+            cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=16)
             cbar.ax.get_yaxis().labelpad=20
         
         ax.set_aspect(np.abs((x0-x1)/(y0-y1)))
@@ -468,23 +487,34 @@ class OrbitPlots:
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
         # set labels and title
-        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ (arcsec)', fontsize=14)
-        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=14)
+        ax.set_xlabel(r'$\mathrm{\Delta \alpha}$ [arcsec]', fontsize=16)
+        ax.set_ylabel(r'$\mathrm{\Delta \delta}$ [arcsec]', fontsize=16)
 
-        print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
+        
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            plt.tight_layout()
-            plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', bbox_inches='tight',transparent=True) # or +'.png'
+            
+            if axis is not None and figure is not None:
+                return
+            else:
+                print("Plotting Astrometry orbits, your plot is generated at " + self.outputdir)
+                plt.tight_layout()
+                plt.savefig(os.path.join(self.outputdir,'astrometric_orbit_' + self.title)+'.pdf', bbox_inches='tight',transparent=True) # or +'.png'
 
 # 2. RV orbits plot
 
     ################################################################################################
     ########################### plot the RV full orbits #######################
     
-    def RV_fullorbit(self):
-        fig = plt.figure(figsize=(5.7, 6.5))
-        ax = fig.add_axes((0.15, 0.3, 0.8, 0.6))
+    def RV_fullorbit(self, axis = None, figure=None, no_colorbar=False):
+        
+        if axis is not None and figure is not None:
+            fig = figure
+            ax = axis
+        else:
+            fig = plt.figure(figsize=(5.7, 6.5))
+            ax = fig.add_axes((0.15, 0.3, 0.8, 0.6))
+        
         orb_ml = Orbit(self, 'best')
                 
         # plot the 50 randomly selected curves
@@ -500,6 +530,8 @@ class OrbitPlots:
         # plot the observed data points (RV & relAst)
         if self.have_RVdat:
             rv_epoch_list = []
+
+            self.color_list = plt.cm.tab20b(np.linspace(0, 1, self.nInst))
             for i in range(self.nInst):
                 epoch_obs_Inst = np.zeros(len(self.epoch_obs_dic[i]))
                 for j in range(len(self.epoch_obs_dic[i])):
@@ -507,16 +539,21 @@ class OrbitPlots:
                 rv_epoch_list.append(epoch_obs_Inst)
 
             jit_ml = orb_ml.par.return_jitters()
-        
+
+            if len(orb_ml.offset) != self.nInst and len(orb_ml.offset) == 1:
+                orb_ml.offset = orb_ml.offset * self.nInst
+            
             for i in range(self.nInst):
+                #self.color_list[i]
                 ax.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2),
-                            fmt=self.color_list[i]+'o', ecolor='black', alpha = 0.8, zorder = 299)
-                ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], facecolors='none', edgecolors='k', alpha = 0.8, zorder=300)
+                            marker='o', color='black', mfc='#1E7204', zorder = 299, linestyle='None', alpha=0.7, capsize=2)
+                #ax.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], color='#1E7204', s = 5, zorder=300)
            
         if self.set_limit:
             ax.set_xlim(np.float(self.user_xlim[0]), np.float(self.user_xlim[1]))
             ax.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             
+        ax.set_ylim(-550, 550)
         ax.set_xlim(self.start_epoch, self.end_epoch)
         x0, x1 = ax.get_xlim()
         y0, y1 = ax.get_ylim()
@@ -526,7 +563,7 @@ class OrbitPlots:
             ax.set_title('RV vs. Epoch')
         if self.add_text:
             ax.text(self.x_text,self.y_text, self.text_name, horizontalalignment='left',verticalalignment='center', transform=ax.transAxes,fontsize=15)
-        if self.usecolorbar:
+        if self.usecolorbar and not no_colorbar:
             cbar_ax = fig.add_axes([1.3, 0.325, 0.03, 0.55])
             cbar = fig.colorbar(self.sm, ax=cbar_ax, fraction=12)
             cbar.ax.set_ylabel(self.cmlabel_dic[self.cmref], rotation=270, fontsize=13)
@@ -536,14 +573,18 @@ class OrbitPlots:
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-        ax.set_xlabel('Epoch (year)', labelpad = 10, fontsize=13)
-        ax.set_ylabel('RV (m/s)', fontsize=13)
+        ax.set_xlabel('epoch [year]', labelpad = 10, fontsize=16)
+        ax.set_ylabel('RV [m/s]', fontsize=16)
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
-            plt.tight_layout()
-            print("Plotting RV orbits, your plot is generated at " + self.outputdir)
-            plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf', transparent=True, bbox_inches='tight', dpi=200) # or +'.pdf'
+
+            if axis is not None and figure is not None:
+                return 
+            else:
+                plt.tight_layout()
+                print("Plotting RV orbits, your plot is generated at " + self.outputdir)
+                plt.savefig(os.path.join(self.outputdir, 'RV_orbit_' + self.title)+'.pdf', transparent=False, bbox_inches='tight', dpi=200) # or +'.pdf'
 
 
 # 3. relative RV plot
@@ -552,9 +593,13 @@ class OrbitPlots:
     ############### plot the RV and O-C #####################
 
     def RV(self):
+
+        self.color_list = plt.cm.tab20b(np.linspace(0, 1, self.nInst))
+
         if not self.have_RVdat:
             print("Cannot plot RV with O-C: no RV observations")
             return
+        
         fig = plt.figure(figsize=(4.7, 5.5))
         ax1 = fig.add_axes((0.15, 0.3, 0.8, 0.6))
         ax2 = fig.add_axes((0.15, 0.12, 0.8, 0.16)) # X, Y, width, height
@@ -588,6 +633,7 @@ class OrbitPlots:
         all_OC = []
         all_OC_err = []
         
+        
         for i in range(self.nInst):
             plot_this = True
             if not self.whichInst == np.str('All'):
@@ -598,8 +644,15 @@ class OrbitPlots:
             if not plot_this:
                 continue
             
+            
             jit_ml = orb_ml.par.return_jitters()
-            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
+
+            if len(orb_ml_obs.offset) != self.nInst and len(orb_ml_obs.offset) == 1:
+                orb_ml_obs.offset = orb_ml_obs.offset * self.nInst
+            if len(orb_ml.offset) != self.nInst and len(orb_ml.offset) == 1:
+                orb_ml.offset = orb_ml.offset * self.nInst
+
+            ax1.errorbar(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], yerr=np.sqrt(self.RV_obs_err_dic[i]**2 + jit_ml[i]**2), marker='o', mfc=self.color_list[i], ecolor='black', capsize=3, alpha = 0.8, zorder=199+i)#, ecolor='black', markersize = 1, elinewidth = 0.3, capsize=1, capthick = 0.3, zorder = 200+i, alpha = 0.8)
             ax1.scatter(rv_epoch_list[i], self.RV_obs_dic[i] + orb_ml.offset[i], s=45, facecolors='none', edgecolors='k', zorder=200+i, alpha = 0.8)
             
             OC = self.RV_obs_dic[i] + orb_ml_obs.offset[i] - orb_ml_obs.RV[self.RVinst == i]
@@ -607,7 +660,7 @@ class OrbitPlots:
             all_OC += list(OC)
             all_OC_err += list(y_err)
             
-            ax2.errorbar(rv_epoch_list[i], OC, yerr=np.sqrt(y_err**2 + jit_ml[i]**2), fmt=self.color_list[i]+'o', ecolor='black', capsize=3)
+            ax2.errorbar(rv_epoch_list[i], OC, yerr=np.sqrt(y_err**2 + jit_ml[i]**2), marker='o', mfc=self.color_list[i], ecolor=self.color_list[i], capsize=3, linestyle='None')
             ax2.scatter(rv_epoch_list[i], OC, s=45, facecolors='none', edgecolors='k', zorder=100, alpha=0.5)
 
             #else:
@@ -726,7 +779,7 @@ class OrbitPlots:
             ax1.xaxis.set_minor_locator(AutoMinorLocator())
             ax1.yaxis.set_minor_locator(AutoMinorLocator())
             ax1.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            lab1 = ax1.set_ylabel('Separation (arcsec)', fontsize=13)
+            lab1 = ax1.set_ylabel('separation [arcsec]', fontsize=13)
             # ax2
             range_datOC = max(dat_OC) - min(dat_OC)
             if np.abs(min(dat_OC)) <= np.abs(max(dat_OC)):
@@ -739,7 +792,7 @@ class OrbitPlots:
                 ax1.set_ylim(np.float(self.user_ylim[0]),np.float(self.user_ylim[1]))
             ax2.xaxis.set_minor_locator(AutoMinorLocator())
             ax2.tick_params(direction='in', which='both', left=True, right=True, bottom=True, top=True)
-            ax2.set_xlabel('Epoch (year)', labelpad=6, fontsize=13)
+            ax2.set_xlabel('epoch [year]', labelpad=6, fontsize=13)
             lab2 = ax2.set_ylabel('O-C', fontsize=13)
             #ax2.get_yaxis().set_label_coords()
 
@@ -1236,8 +1289,8 @@ class OrbitPlots:
     def plot_corner(self, **kwargs):
         rcParams["lines.linewidth"] = 1.0
         rcParams["axes.labelpad"] = 20.0
-        rcParams["xtick.labelsize"] = 10.0
-        rcParams["ytick.labelsize"] = 10.0
+        rcParams["xtick.labelsize"] = 14.0
+        rcParams["ytick.labelsize"] = 14.0
         
         chain = self.chain
 
@@ -1245,10 +1298,10 @@ class OrbitPlots:
         npl = '%d' % (self.iplanet)
         if self.cmref == 'msec_solar':
             Msec = chain['msec' + npl]         # in M_{\odot}
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{\odot})}$', 'a (AU)', r'e', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, [M_{\odot}]}$', r'$\mathrm{M_{sec}\, [M_{\odot}]}$', 'a [au]', r'e', r'$\mathrm{i\, [^{\circ}]}$']
         else:
             Msec = chain['msec' + npl]*1989/1.898
-            labels=[r'$\mathrm{M_{pri}\, (M_{\odot})}$', r'$\mathrm{M_{sec}\, (M_{Jup})}$', 'a (AU)', r'e', r'$\mathrm{i\, (^{\circ})}$']
+            labels=[r'$\mathrm{M_{pri}\, [M_{\odot}]}$', r'$\mathrm{M_{sec}\, [M_\mathrm{Jup}]}$', 'a [au]', r'e', r'$\mathrm{i\, [^{\circ}]}$']
         Semimajor = chain['sau' + npl]
         Ecc = chain['esino' + npl]**2 + chain['ecoso' + npl]**2
         Inc = chain['inc' + npl]
@@ -1256,10 +1309,38 @@ class OrbitPlots:
         chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc * 180/np.pi]).T
 
         # in corner_modified, the error is modified to keep 2 significant figures
-        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 12}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":15}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
+        figure = corner_modified.corner(chain, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 14}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":18}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
 
         print("Plotting Corner plot, your plot is generated at " + self.outputdir)
         plt.savefig(os.path.join(self.outputdir, 'Corner_' + self.title)+'.pdf', transparent=True)
+
+        return figure
+
+    def plot_corner_joined(self, figure_to_plot, axis_to_plot, **kwargs):
+        rcParams["lines.linewidth"] = 1.0
+        rcParams["axes.labelpad"] = 20.0
+        rcParams["xtick.labelsize"] = 14.0
+        rcParams["ytick.labelsize"] = 14.0
+        
+        chain = self.chain
+
+        Mpri = chain['mpri']
+        npl = '%d' % (self.iplanet)
+        if self.cmref == 'msec_solar':
+            Msec = chain['msec' + npl]         # in M_{\odot}
+            labels=[r'$\mathrm{M_{pri}\, [M_{\odot}]}$', r'$\mathrm{M_{sec}\, [M_{\odot}]}$', 'a [au]', r'e', r'$\mathrm{i\, [^{\circ}]}$']
+        else:
+            Msec = chain['msec' + npl]*1989/1.898
+            labels=[r'$\mathrm{M_{pri}\, [M_{\odot}]}$', r'$\mathrm{M_{sec}\, [M_\mathrm{Jup}]}$', 'a [au]', r'e', r'$\mathrm{i\, [^{\circ}]}$']
+        Semimajor = chain['sau' + npl]
+        Ecc = chain['esino' + npl]**2 + chain['ecoso' + npl]**2
+        Inc = chain['inc' + npl]
+        
+        chain = np.vstack([Mpri, Msec, Semimajor, Ecc, Inc * 180/np.pi]).T
+
+        # in corner_modified, the error is modified to keep 2 significant figures
+        corner_modified.corner(chain, axis=axis_to_plot, fig=figure_to_plot, return_axis=False, labels=labels, quantiles=[0.16, 0.5, 0.84], range=[0.999 for l in labels], verbose=False, show_titles=True, title_kwargs={"fontsize": 14}, hist_kwargs={"lw":1.}, label_kwargs={"fontsize":18}, xlabcord=(0.5,-0.45), ylabcord=(-0.45,0.5),  **kwargs)
+        return
 
 ###################################################################################################
 ###################################################################################################

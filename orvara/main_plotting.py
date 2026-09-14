@@ -22,6 +22,7 @@ from random import randrange
 from astropy.io import fits
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from matplotlib.gridspec import GridSpec
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import matplotlib.patches as mpatches
@@ -144,6 +145,8 @@ def run():
     
     if checkconv:
         OPs.plot_chains()
+    if plot_corner:
+        OPs.plot_corner()
     if plot_astr:
         OPs.astrometry()
     if plot_astr_pred:
@@ -158,10 +161,41 @@ def run():
         OPs.PA()
     if plot_proper_motions:
         OPs.proper_motions()
-    if plot_corner:
-        OPs.plot_corner()
     if save_params:
         OPs.save_data()
+
+    figure, axs = plt.subplots(5, 8, figsize=(2*8, 2*5), dpi = 120)
+
+    corner_axis = axs[0:5, 0:5]
+
+    for ax in axs.flatten():
+        ax.axis('off')
+
+    j = 1 
+    for i in range(5):
+        for k in range(j):
+            corner_axis[i, k].axis('on')
+        j += 1
+
+    _ = OPs.plot_corner_joined(figure_to_plot=figure, axis_to_plot=corner_axis)
+
+    # move existing corner plot into left block
+    # (assumes corner already fills fig, so just overlay new axes)
+
+    # panel b
+    ax_b = figure.add_axes([4/8, 2.4/5, 3/8, 4/8])
+    ax_c = figure.add_axes([5.9/8, 0.5/5, 1.4/8, 1.4/5])
+
+    OPs.astrometry(axis=ax_b, figure=figure)
+    OPs.RV_fullorbit(axis=ax_c, figure=figure, no_colorbar=True)
+
+    ax_c.text(-0.3, 0.9, 'c)', fontsize=22, ha='center', va='center', transform=ax_c.transAxes)
+    ax_b.text(-0.2, 0.9, 'b)', fontsize=22, ha='center', va='center', transform=ax_b.transAxes)
+    axs[0, 0].text(-0.3, 1, 'a)', fontsize=22, ha='center', va='center', transform=axs[0, 0].transAxes)
+
+    print("Plotting Corner plot with all the panels, your plot is generated at " + OPs.outputdir)
+    plt.savefig(os.path.join(OPs.outputdir, f"{OPs.target}_corner_joined.pdf"), dpi=200, bbox_inches='tight')
+
 
     
 if __name__ == "__main__":

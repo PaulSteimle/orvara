@@ -70,7 +70,8 @@ def set_initial_parameters(start_file, ntemps, nplanets, nwalkers, njit=1,
     bounds = [[0, minjit, maxjit],   # jitter
               [1, 1e-4, 1e3],        # mpri (Solar masses)
               [2, 1e-4, 1e3],        # msec (Solar masses)
-              [3, 1e-5, 2e5],        # semimajor axis (AU)
+              #[3, 1e-5, 2e5],        # semimajor axis (AU)
+              [6, 1e-5, 50],        # semimajor axis (AU)
               [6, 1e-5, np.pi],      # inclination (radians)
               [7, -np.pi, 3*np.pi],  # longitude of ascending node (rad)
               [8, -np.pi, 3*np.pi]]  # long at ref epoch (rad)
@@ -239,6 +240,20 @@ def lnprob(theta, returninfo=False, RVoffsets=False, use_epoch_astrometry=False,
         return orbit.calcL(data, params, model, chisq_resids=True, RVoffsets=RVoffsets)
 
     if np.isfinite(priors['mpri_sig']):
+        
+        ###### Theses are added by hand and ensure that if the sma is larger than 100 au the lnprob is -inf, which prevents walkers from exploring unphysically large orbits that can cause numerical issues in the orbit code.
+        if params.sau > 100:
+            return - np.inf
+        
+        if params.ecc > 0.5:
+            lnp =- params.ecc**10 * 1e+5
+
+        # if params.sau < 2:
+        #     return - np.inf    
+    
+        #if params.msec < 0.015:
+        #     return - np.inf
+        
         return lnp - 0.5*(params.mpri_true - priors['mpri'])**2/priors['mpri_sig']**2 + orbit.calcL(data, params, model)
     else:
         return lnp - np.log(params.mpri_true) + orbit.calcL(data, params, model)
