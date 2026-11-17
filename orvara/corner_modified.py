@@ -22,9 +22,9 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
            labels=None, label_kwargs=None,
            show_titles=False, title_fmt=".2f", title_kwargs=None,
            truths=None, truth_color="#4682b4",
-           scale_hist=False, quantiles=None, verbose=False, fig=None,
+           scale_hist=False, quantiles=None, verbose=False, fig=None, axis=None,
            max_n_ticks=5, top_ticks=False, use_math_text=False, reverse=False,
-           hist_kwargs=None, **hist2d_kwargs):
+           hist_kwargs=None, return_axis=False, **hist2d_kwargs):
     """
     Make a *sick* corner plot showing the projections of a data set in a
     multi-dimensional space. kwargs are passed to hist2d() or used for
@@ -197,7 +197,13 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
     dim = lbdim + plotdim + trdim
 
     # Create a new figure if one wasn't provided.
-    if fig is None:
+    axis_fig_provided = False
+    if fig is not None and axis is not None:    
+        axes = axis
+        axis_fig_provided = True
+
+    elif fig is None:
+    
         fig, axes = pl.subplots(K, K, figsize=(dim, dim))
     else:
         try:
@@ -209,8 +215,8 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
     # Format the figure.
     lb = lbdim / dim
     tr = (lbdim + plotdim) / dim
-    fig.subplots_adjust(left=lb, bottom=lb, right=tr, top=tr,
-                        wspace=whspace, hspace=whspace)
+    
+    fig.subplots_adjust(left=lb, bottom=lb, right=tr, top=tr, wspace=whspace, hspace=whspace)
 
     # Set up the default histogram keywords.
     if hist_kwargs is None:
@@ -416,6 +422,12 @@ def corner(xs, bins=20, range=None, weights=None, color="k", hist_bin_factor=1,
                 # use MathText for axes ticks
                 ax.yaxis.set_major_formatter(
                     ScalarFormatter(useMathText=use_math_text))
+
+    if axis_fig_provided:
+        return
+
+    if return_axis:
+        return fig, axes
 
     return fig
 
